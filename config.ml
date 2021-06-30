@@ -200,7 +200,6 @@ let packages = [
   package ~min:"2.6.0" "irmin";
   package ~min:"2.6.0" "irmin-mirage";
   package ~min:"2.6.0" "irmin-mirage-git";
-  package "cohttp-mirage";
   package "tls-mirage";
   package "magic-mime";
   package "logs";
@@ -208,6 +207,7 @@ let packages = [
   package "awa-mirage";
   package ~min:"3.4.0" "git-mirage";
   package ~min:"0.2.5" "letsencrypt";
+  package "paf" ~sublibs:[ "le" ] ~pin:"git+https://github.com/dinosaure/paf-le-chien.git#better-le"
 ]
 
 let stack = generic_stackv4v6 default_network
@@ -224,10 +224,6 @@ let mimic_impl =
     default_random default_monotonic_clock default_posix_clock default_time
     (paf_impl default_time stack)
 
-let conduit_ = conduit_direct ~tls:true stack
-let http_srv = cohttp_server conduit_
-let http_cli = cohttp_client (resolver_dns stack) conduit_
-
 let () =
   let keys = Key.([
       abstract hook; abstract remote;
@@ -242,9 +238,11 @@ let () =
       ~keys
       ~packages
       "Unikernel.Main"
-      (mimic @-> http_client @-> http @-> pclock @-> time @-> job)
+      (mimic @-> random @-> mclock @-> pclock @-> time @-> stackv4v6 @-> job)
     $ mimic_impl
-    $ http_cli $ http_srv
+    $ default_random
+    $ default_monotonic_clock
     $ default_posix_clock
     $ default_time
+    $ stack
   ]
